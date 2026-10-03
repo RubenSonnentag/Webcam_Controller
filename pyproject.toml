@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "webcam-controller-benchmark"
+version = "0.1.0"
+description = "Output-free phase-2 benchmark for facial gesture recognition"
+requires-python = ">=3.11,<3.13"
+license = { text = "Apache-2.0" }
+dependencies = [
+  # 0.10.35 attempts usage-metrics upload. Keep the benchmark on the last
+  # empirically telemetry-free wheel until an official opt-out exists.
+  "mediapipe==0.10.21",
+  "numpy>=1.26,<3",
+  "opencv-contrib-python>=4.10,<4.12",
+  "psutil>=6,<8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+
+[project.scripts]
+webcam-benchmark = "webcam_benchmark.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

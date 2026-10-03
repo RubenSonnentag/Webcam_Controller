@@ -1,0 +1,14 @@
+/datasets/
+/results/
+/models/
+/.venv/
+/.cache/
+/.pytest_cache/
+/HANDOFF.md
+*.avi
+__pycache__/
+*.pyc
+*.egg-info/
+/build/
+/dist/
+.coverage

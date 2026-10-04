@@ -2,6 +2,7 @@
 /results/
 /models/
 /.venv/
+/.tools/
 /.cache/
 /.pytest_cache/
 /HANDOFF.md

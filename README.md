@@ -264,3 +264,35 @@ Mund-Datensatz erreichte 10/10 Mundöffnungen und 0/10 Fehlauslösungen in
 neutralen Versuchen. Das ist noch keine Produktivfreigabe: Sprechen, Gähnen,
 natürliche Mundbewegungen sowie variierende Beleuchtung und Kopfrotation
 fehlen als Negativ- und Robustheitstests.
+
+## Austauschbare Erkennungs-Provider
+
+Die Anwendung entwickelt kein eigenes Gesichtsmodell. Sie verwendet fertige
+Open-Source-Erkennung hinter `FaceBackend` und hält Gestenlogik, Mapping und
+spätere Ausgabe davon getrennt. MediaPipe bleibt der schnelle Standard;
+OpenSeeFace kann optional mit seinem auf Zwinkern optimierten Modell 4 gegen
+dieselben lokalen Aufnahmen getestet werden.
+
+OpenSeeFace wird nicht in diesem Repository gespiegelt. Für den lokalen
+Benchmark wird ein unverändertes offizielles Checkout verwendet:
+
+```powershell
+git clone --depth 1 https://github.com/emilianavt/OpenSeeFace.git .tools\OpenSeeFace
+.\.venv\Scripts\python.exe -m pip install -e ".[openseeface]"
+.\.venv\Scripts\python.exe -m webcam_benchmark replay `
+  --engine openseeface `
+  --openseeface-root .tools\OpenSeeFace `
+  --openseeface-model 4 `
+  --dataset datasets\baseline-innomaker-auto-1080p60-2026-10-18 `
+  --sweep `
+  --export results\eyes-openseeface4.json
+```
+
+Auf dem kontrollierten Innomaker-Augendatensatz erreichte OpenSeeFace bei der
+90-ms-Sicherheitsuntergrenze 9/10 linke und 10/10 rechte Gesten, ohne falsche
+einseitige Auslösung der zehn normalen Blinzler. MediaPipe erreichte auf
+demselben Material 7/10 links und 10/10 rechts. OpenSeeFace war mit 22,71 ms
+Median / 23,50 ms p95 deutlich langsamer als MediaPipe mit 7,30 / 7,82 ms,
+blieb im Offline-Test aber innerhalb des Software-Latenzbudgets. Die Ergebnisse
+sind noch keine allgemeine Provider-Freigabe; unabhängige Negativ- und
+Robustheitstests bleiben erforderlich.

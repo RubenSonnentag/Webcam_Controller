@@ -575,6 +575,7 @@ def replay_dataset(
         raise ValueError("Dataset video hash does not match manifest")
     labels = list(manifest["frames"])
 
+    backend_name = backend.name
     capture = cv2.VideoCapture(str(video_path))
     if not capture.isOpened():
         raise RuntimeError(f"Could not open dataset video: {video_path}")
@@ -602,6 +603,7 @@ def replay_dataset(
     report: dict[str, object] = {
         "privacy": "Local replay; no images exported",
         "output": "Disabled",
+        "recognition_backend": backend_name,
         "dataset_kind": dataset_kind,
         "dataset_video_sha256": actual_hash,
         "frame_count": read_frames,

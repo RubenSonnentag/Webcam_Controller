@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .backends import MediaPipeFaceBackend
+from .backends import MediaPipeFaceBackend, OpenSeeFaceBackend
 from .config import CameraConfig
 from .dataset import (
     record_dataset,
@@ -179,7 +179,11 @@ def build_parser() -> argparse.ArgumentParser:
     recover_sweep.add_argument("--camera-fps", type=float, default=30.0)
 
     replay = subparsers.add_parser("replay", help="Replay a recorded local dataset")
-    replay.add_argument("--model", type=Path, required=True)
+    replay.add_argument("--engine", choices=("mediapipe", "openseeface"), default="mediapipe")
+    replay.add_argument("--model", type=Path)
+    replay.add_argument("--openseeface-root", type=Path)
+    replay.add_argument("--openseeface-model", type=int, choices=(-3, -2, -1, 0, 1, 2, 3, 4), default=4)
+    replay.add_argument("--openseeface-threads", type=int, default=4)
     replay.add_argument("--dataset", type=Path, required=True)
     replay.add_argument("--export", type=Path)
     replay.add_argument("--sweep", action="store_true")
@@ -359,10 +363,24 @@ def main(argv: list[str] | None = None) -> int:
         )
     else:
         report = replay_dataset(
-            MediaPipeFaceBackend(args.model),
+            _replay_backend(args),
             dataset_dir=args.dataset,
             export_path=args.export,
             run_sweep=args.sweep,
         )
     print(json.dumps(report, indent=2))
     return 0
+
+
+def _replay_backend(args: argparse.Namespace):
+    if args.engine == "openseeface":
+        if args.openseeface_root is None:
+            raise ValueError("--openseeface-root is required for the OpenSeeFace engine")
+        return OpenSeeFaceBackend(
+            args.openseeface_root,
+            model_type=args.openseeface_model,
+            max_threads=args.openseeface_threads,
+        )
+    if args.model is None:
+        raise ValueError("--model is required for the MediaPipe engine")
+    return MediaPipeFaceBackend(args.model)

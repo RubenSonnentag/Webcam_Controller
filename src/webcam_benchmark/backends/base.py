@@ -6,6 +6,10 @@ from ..types import FaceSignals
 
 
 class FaceBackend(ABC):
+    @property
+    def name(self) -> str:
+        return type(self).__name__
+
     @abstractmethod
     def analyze(self, image_bgr: object, timestamp_ns: int) -> FaceSignals:
         raise NotImplementedError

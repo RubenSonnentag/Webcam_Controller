@@ -34,3 +34,22 @@ def test_record_mouth_uses_1080p60_mjpeg_defaults() -> None:
     assert args.fourcc == "mjpg"
     assert args.exposure == -6.0
     assert args.trials_per_group == 10
+
+
+def test_replay_accepts_openseeface_provider() -> None:
+    args = build_parser().parse_args(
+        [
+            "replay",
+            "--engine",
+            "openseeface",
+            "--openseeface-root",
+            "OpenSeeFace",
+            "--openseeface-model",
+            "4",
+            "--dataset",
+            "dataset",
+        ]
+    )
+    assert args.model is None
+    assert args.engine == "openseeface"
+    assert args.openseeface_model == 4

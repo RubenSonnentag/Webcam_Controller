@@ -19,6 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<9"]
+openseeface = ["onnxruntime>=1.17,<2"]
 
 [project.scripts]
 webcam-benchmark = "webcam_benchmark.cli:main"

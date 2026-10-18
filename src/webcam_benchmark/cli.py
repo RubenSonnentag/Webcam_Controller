@@ -8,6 +8,7 @@ from .backends import MediaPipeFaceBackend
 from .config import CameraConfig
 from .dataset import (
     record_dataset,
+    record_mouth_dataset,
     record_negative_dataset,
     record_pose_dataset,
     record_pose_sweep_dataset,
@@ -105,6 +106,24 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
     )
     record.add_argument("--roi-size", type=int, default=512)
+    record.add_argument("--auto-advance", action="store_true")
+    record.add_argument("--group-change-seconds", type=float, default=4.0)
+
+    mouth = subparsers.add_parser(
+        "record-mouth", help="Record automatic neutral and mouth-opening trials"
+    )
+    mouth.add_argument("--model", type=Path, required=True)
+    mouth.add_argument("--output", type=Path, required=True)
+    mouth.add_argument("--camera", type=int, default=0)
+    mouth.add_argument("--width", type=int, default=1920)
+    mouth.add_argument("--height", type=int, default=1080)
+    mouth.add_argument("--fps", type=float, default=60.0)
+    mouth.add_argument("--capture-backend", choices=("auto", "msmf", "dshow"), default="dshow")
+    mouth.add_argument("--fourcc", choices=("auto", "mjpg", "yuy2"), default="mjpg")
+    mouth.add_argument("--exposure", type=float)
+    mouth.add_argument("--trials-per-group", type=int, default=10)
+    mouth.add_argument("--roi-size", type=int, default=512)
+    mouth.add_argument("--group-change-seconds", type=float, default=4.0)
 
     negative = subparsers.add_parser(
         "record-negative", help="Record continuous neutral behavior and natural blinks"
@@ -257,6 +276,27 @@ def main(argv: list[str] | None = None) -> int:
             trials_per_gesture=args.trials_per_gesture,
             trial_groups=tuple(args.trial_groups) if args.trial_groups else None,
             roi_size=args.roi_size,
+            auto_advance=args.auto_advance,
+            group_change_s=args.group_change_seconds,
+        )
+    elif args.command == "record-mouth":
+        report = record_mouth_dataset(
+            MediaPipeFaceBackend(args.model),
+            CameraConfig(
+                index=args.camera,
+                width=args.width,
+                height=args.height,
+                fps=args.fps,
+                analysis_rate=args.fps,
+                preview=True,
+                backend=args.capture_backend,
+                fourcc=args.fourcc,
+                exposure=args.exposure,
+            ),
+            output_dir=args.output,
+            trials_per_group=args.trials_per_group,
+            roi_size=args.roi_size,
+            group_change_s=args.group_change_seconds,
         )
     elif args.command == "record-negative":
         report = record_negative_dataset(

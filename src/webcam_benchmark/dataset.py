@@ -11,6 +11,7 @@ from .backends.base import FaceBackend
 from .capture import CameraCapture
 from .config import CameraConfig
 from .latest_frame import LatestFrameBuffer
+from .mouth import evaluate_mouth_trials
 from .sweep import evaluate_negative_stream, run_parameter_sweep
 from .trial_test import (
     EAR_CLOSE_THRESHOLDS,
@@ -37,6 +38,10 @@ def record_dataset(
     roi_size: int = 512,
     countdown_s: float = 1.5,
     measurement_s: float = 2.5,
+    auto_advance: bool = False,
+    group_change_s: float = 4.0,
+    trials_override: tuple[Trial, ...] | None = None,
+    dataset_kind: str = "controlled_trials",
 ) -> dict[str, object]:
     import cv2
 
@@ -45,9 +50,13 @@ def record_dataset(
     output_dir.mkdir(parents=True, exist_ok=True)
     video_path = output_dir / "face_roi.avi"
     manifest_path = output_dir / "manifest.json"
-    trials = _trials(trials_per_gesture, trial_groups)
+    trials = list(trials_override) if trials_override is not None else _trials(
+        trials_per_gesture, trial_groups
+    )
     if not trials:
         raise ValueError("At least one valid trial group is required")
+    if countdown_s < 0 or group_change_s < 0:
+        raise ValueError("Preparation durations must not be negative")
 
     buffer = LatestFrameBuffer()
     capture = CameraCapture(camera_config, buffer)
@@ -69,11 +78,30 @@ def record_dataset(
         cv2.namedWindow(RECORD_WINDOW, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(RECORD_WINDOW, 1280, 720)
         cv2.setWindowProperty(RECORD_WINDOW, cv2.WND_PROP_TOPMOST, 1)
+        previous_expected: str | None = None
         for trial_index, trial in enumerate(trials):
-            if not _await_space(buffer, capture, trial, trial_index, len(trials)):
-                aborted = True
-                break
-            if not _countdown(buffer, capture, trial, trial_index, len(trials), countdown_s):
+            accent = _trial_color(trial)
+            group_changed = trial.expected != previous_expected
+            if not auto_advance or trial_index == 0:
+                if not _await_space(buffer, capture, trial, trial_index, len(trials)):
+                    aborted = True
+                    break
+            if auto_advance:
+                phase = "NEUE AKTION IN" if group_changed else "NAECHSTER VERSUCH IN"
+                preparation_s = group_change_s if group_changed else countdown_s
+            else:
+                phase = "START IN"
+                preparation_s = countdown_s
+            if not _countdown(
+                buffer,
+                capture,
+                trial,
+                trial_index,
+                len(trials),
+                preparation_s,
+                phase=phase,
+                accent=accent,
+            ):
                 aborted = True
                 break
             started = time.perf_counter()
@@ -101,12 +129,18 @@ def record_dataset(
                 )
                 remaining = measurement_s - (time.perf_counter() - started)
                 if _show_recording(
-                    packet.image_bgr, trial, trial_index, len(trials), remaining
+                    packet.image_bgr,
+                    trial,
+                    trial_index,
+                    len(trials),
+                    remaining,
+                    accent=accent,
                 ) == 27:
                     aborted = True
                     break
             if aborted:
                 break
+            previous_expected = trial.expected
     finally:
         capture.stop()
         backend.close()
@@ -115,7 +149,7 @@ def record_dataset(
 
     manifest: dict[str, object] = {
         "schema_version": 1,
-        "dataset_kind": "controlled_trials",
+        "dataset_kind": dataset_kind,
         "privacy_notice": "Sensitive facial ROI video; local storage only",
         "aborted": aborted,
         "video": video_path.name,
@@ -129,6 +163,8 @@ def record_dataset(
         "requested_exposure": camera_config.exposure,
         "actual_exposure": capture.actual_exposure,
         "frame_count": len(frames),
+        "auto_advance": auto_advance,
+        "group_change_seconds": group_change_s if auto_advance else None,
         "frames": frames,
     }
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -139,6 +175,46 @@ def record_dataset(
         "video_sha256": manifest["video_sha256"],
         "privacy": manifest["privacy_notice"],
     }
+
+
+def record_mouth_dataset(
+    backend: FaceBackend,
+    camera_config: CameraConfig,
+    *,
+    output_dir: Path,
+    trials_per_group: int = 10,
+    roi_size: int = 512,
+    group_change_s: float = 4.0,
+) -> dict[str, object]:
+    if trials_per_group < 1:
+        raise ValueError("trials_per_group must be positive")
+    trials = tuple(
+        Trial(
+            "mouth_neutral",
+            "Mund entspannt geschlossen halten; nicht sprechen",
+            number,
+            trials_per_group,
+        )
+        for number in range(1, trials_per_group + 1)
+    ) + tuple(
+        Trial(
+            "mouth_open",
+            "Mund EINMAL deutlich oeffnen, kurz halten und wieder schliessen",
+            number,
+            trials_per_group,
+        )
+        for number in range(1, trials_per_group + 1)
+    )
+    return record_dataset(
+        backend,
+        camera_config,
+        output_dir=output_dir,
+        roi_size=roi_size,
+        auto_advance=True,
+        group_change_s=group_change_s,
+        trials_override=trials,
+        dataset_kind="mouth_trials",
+    )
 
 
 def record_negative_dataset(
@@ -534,6 +610,8 @@ def replay_dataset(
     if dataset_kind == "negative_stream":
         samples = next(iter(grouped.values()), [])
         report["negative_evaluation"] = evaluate_negative_stream(samples)
+    elif dataset_kind == "mouth_trials":
+        report["mouth_evaluation"] = evaluate_mouth_trials(grouped)
     elif dataset_kind in ("pose_negative", "pose_sweep"):
         neutral_samples = grouped.get(("pose_neutral", 1), [])
         visible_neutral = [sample for sample in neutral_samples if sample.face_present]
@@ -671,6 +749,9 @@ def _countdown(
     index: int,
     total: int,
     seconds: float,
+    *,
+    phase: str = "START IN",
+    accent: tuple[int, int, int] = (0, 255, 255),
 ) -> bool:
     started = time.perf_counter()
     while time.perf_counter() - started < seconds:
@@ -680,7 +761,15 @@ def _countdown(
         if packet is None:
             continue
         remaining = seconds - (time.perf_counter() - started)
-        if _show(packet.image_bgr, "START IN", trial, index, total, remaining) == 27:
+        if _show(
+            packet.image_bgr,
+            phase,
+            trial,
+            index,
+            total,
+            remaining,
+            accent=accent,
+        ) == 27:
             return False
     return True
 
@@ -692,6 +781,8 @@ def _show(
     index: int,
     total: int,
     remaining: float,
+    *,
+    accent: tuple[int, int, int] = (0, 255, 255),
 ) -> int:
     import cv2
 
@@ -703,7 +794,16 @@ def _show(
         "Leertaste = Start | Esc = Abbruch | sensible lokale Aufnahme",
     )
     for row, line in enumerate(lines):
-        cv2.putText(display, line, (24, 40 + row * 46), cv2.FONT_HERSHEY_SIMPLEX, 0.82, (0, 255, 255), 2)
+        color = accent if row < 2 else (255, 255, 255)
+        cv2.putText(
+            display,
+            line,
+            (24, 40 + row * 46),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.82,
+            color,
+            2,
+        )
     cv2.imshow(RECORD_WINDOW, display)
     return cv2.waitKey(1) & 0xFF
 
@@ -714,6 +814,8 @@ def _show_recording(
     index: int,
     total: int,
     remaining: float,
+    *,
+    accent: tuple[int, int, int] = (255, 255, 255),
 ) -> int:
     import cv2
 
@@ -726,9 +828,28 @@ def _show_recording(
         "Gespeichert wird nur die Gesichts-ROI | Esc = Abbruch",
     )
     for row, line in enumerate(lines):
-        cv2.putText(display, line, (68 if row == 0 else 24, 46 + row * 50), cv2.FONT_HERSHEY_SIMPLEX, 0.82, (0, 0, 255) if row == 0 else (255, 255, 255), 2)
+        color = (0, 0, 255) if row == 0 else accent if row == 1 else (255, 255, 255)
+        cv2.putText(
+            display,
+            line,
+            (68 if row == 0 else 24, 46 + row * 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.82,
+            color,
+            2,
+        )
     cv2.imshow(RECORD_WINDOW, display)
     return cv2.waitKey(1) & 0xFF
+
+
+def _trial_color(trial: Trial) -> tuple[int, int, int]:
+    return {
+        "normal_blink": (0, 255, 255),
+        "left_eye": (0, 255, 0),
+        "right_eye": (255, 0, 255),
+        "mouth_neutral": (255, 255, 255),
+        "mouth_open": (255, 255, 0),
+    }.get(trial.expected, (255, 255, 255))
 
 
 def _sha256(path: Path) -> str:

@@ -178,8 +178,29 @@ Datensätze unter `datasets/` sowie AVI-Dateien sind von Git ausgeschlossen.
   --output datasets\baseline-n60 `
   --camera 0 --capture-backend dshow `
   --width 1920 --height 1080 --fps 30 `
-  --trials-per-gesture 10
+  --trials-per-gesture 10 `
+  --auto-advance
 ```
+
+Mit `--auto-advance` ist nur zum Start einmal die Leertaste erforderlich.
+Zwischen Versuchen läuft danach automatisch ein Countdown. Beim Wechsel der
+geforderten Aktion wechselt zusätzlich die Farbe der Anweisung; die längere
+Wechselpause lässt sich mit `--group-change-seconds` einstellen.
+
+Für getrennte Mundversuche gibt es einen eigenen automatischen Ablauf:
+
+```powershell
+.\.venv\Scripts\python.exe -m webcam_benchmark record-mouth `
+  --model models\face_landmarker.task `
+  --output datasets\mouth-1080p60 `
+  --camera 0 --capture-backend dshow `
+  --width 1920 --height 1080 --fps 60 `
+  --fourcc MJPG --exposure -6
+```
+
+Dieser zeichnet zunächst zehn neutrale Abschnitte und anschließend zehn
+einmalige Mundöffnungen auf. Die Offline-Auswertung prüft Kombinationen aus
+`jawOpen`-Schwelle, Mindestdauer in Millisekunden und kurzer Lückenhysterese.
 
 Der Zielordner muss leer oder noch nicht vorhanden sein und wird nie
 überschrieben. `face_roi.avi` enthält MJPEG-Einzelbilder; `manifest.json`
@@ -232,3 +253,14 @@ Mindestdauer, ausschließlich kausale Glättung und Gap-Hysterese. Werte unter
 90 ms werden zwar explorativ ausgewiesen, aber nicht als freigabefähige
 Kandidaten gerankt. Ein gutes Ergebnis auf demselben Datensatz ersetzt keine
 Validierung unter unabhängigen Aufnahmebedingungen.
+
+## Stand der automatischen 1080p60-Aufnahmen
+
+Die am 18. Oktober 2026 automatisch aufgenommenen Innomaker-Datensätze
+bestätigten den Workflow bei 1080p60. Im Augen-Datensatz wurden bei der
+verbindlichen Mindestdauer von 90 ms 7/10 linke und 10/10 rechte Gesten
+erkannt; 10/10 normale Blinzler blieben ohne Fehlauslösung. Der kontrollierte
+Mund-Datensatz erreichte 10/10 Mundöffnungen und 0/10 Fehlauslösungen in
+neutralen Versuchen. Das ist noch keine Produktivfreigabe: Sprechen, Gähnen,
+natürliche Mundbewegungen sowie variierende Beleuchtung und Kopfrotation
+fehlen als Negativ- und Robustheitstests.

@@ -117,6 +117,10 @@ def run_camera(
         "camera": {
             "requested": [camera_config.width, camera_config.height, camera_config.fps],
             "actual": [capture.actual_width, capture.actual_height, capture.actual_fps],
+            "requested_fourcc": camera_config.fourcc.upper(),
+            "actual_fourcc": capture.actual_fourcc,
+            "requested_exposure": camera_config.exposure,
+            "actual_exposure": capture.actual_exposure,
             "measured_rate": measured_capture_rate,
         },
         "analysis": {

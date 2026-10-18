@@ -17,6 +17,8 @@ class CameraCapture:
         self.actual_width = 0
         self.actual_height = 0
         self.actual_fps = 0.0
+        self.actual_fourcc = ""
+        self.actual_exposure = 0.0
         self.error: Exception | None = None
 
     def start(self) -> None:
@@ -39,20 +41,14 @@ class CameraCapture:
         }
         capture = cv2.VideoCapture(self.config.index, backends[self.config.backend])
         try:
-            if self.config.fourcc != "auto":
-                capture.set(
-                    cv2.CAP_PROP_FOURCC,
-                    cv2.VideoWriter_fourcc(*self.config.fourcc.upper()),
-                )
-            capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.width)
-            capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
-            capture.set(cv2.CAP_PROP_FPS, self.config.fps)
-            capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             if not capture.isOpened():
                 raise RuntimeError(f"Cannot open camera index {self.config.index}")
+            _configure_capture(capture, self.config, cv2)
             self.actual_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
             self.actual_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
             self.actual_fps = float(capture.get(cv2.CAP_PROP_FPS))
+            self.actual_fourcc = _decode_fourcc(capture.get(cv2.CAP_PROP_FOURCC))
+            self.actual_exposure = float(capture.get(cv2.CAP_PROP_EXPOSURE))
             sequence = 0
             while not self._stop.is_set():
                 ok, image = capture.read()
@@ -66,3 +62,25 @@ class CameraCapture:
         finally:
             capture.release()
             self.target.close()
+
+
+def _configure_capture(capture: object, config: CameraConfig, cv2: object) -> None:
+    # Some UVC/DirectShow drivers only retain MJPG when FourCC is set after
+    # resolution and FPS. Reversing this order silently fell back to YUY2.
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, config.width)  # type: ignore[attr-defined]
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, config.height)  # type: ignore[attr-defined]
+    capture.set(cv2.CAP_PROP_FPS, config.fps)  # type: ignore[attr-defined]
+    if config.fourcc != "auto":
+        capture.set(  # type: ignore[attr-defined]
+            cv2.CAP_PROP_FOURCC,  # type: ignore[attr-defined]
+            cv2.VideoWriter_fourcc(*config.fourcc.upper()),  # type: ignore[attr-defined]
+        )
+    capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # type: ignore[attr-defined]
+    if config.exposure is not None:
+        capture.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # type: ignore[attr-defined]
+        capture.set(cv2.CAP_PROP_EXPOSURE, config.exposure)  # type: ignore[attr-defined]
+
+
+def _decode_fourcc(value: float) -> str:
+    integer = int(value)
+    return "".join(chr((integer >> (8 * index)) & 0xFF) for index in range(4)).rstrip("\x00")

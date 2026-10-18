@@ -27,3 +27,4 @@ class CameraConfig:
     preview: bool = True
     backend: str = "auto"
     fourcc: str = "auto"
+    exposure: float | None = None

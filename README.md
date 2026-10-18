@@ -62,6 +62,25 @@ Kameras unterscheiden sich bei der Format-Aushandlung. Standard ist
 Capture-Rate den Modus tatsächlich bestätigt. Die von einem Treiber gemeldete
 Soll-FPS allein gilt nicht als Messwert.
 
+### Getestetes Referenzprofil: Innomaker U20CAM-4M
+
+Das am 18. Oktober 2026 geprüfte 1080p60-Profil verwendet DirectShow, MJPEG
+und eine manuelle Belichtung von `-6` (ungefähr 1/64 Sekunde):
+
+```powershell
+.\.venv\Scripts\python.exe -m webcam_benchmark camera `
+  --model models\face_landmarker.task `
+  --camera 0 --capture-backend dshow --fourcc mjpg `
+  --width 1920 --height 1080 --fps 60 `
+  --exposure -6 --analysis-rate 60
+```
+
+Gemessen wurden 60,02 Capture-fps, 57,35 Analysen/s, 100 % Gesichtserkennung
+sowie 10,36 ms Median- und 18,46 ms p95-Softwarelatenz. Der passende
+Belichtungswert hängt von Kamera und Beleuchtung ab. Ohne `--exposure -6`
+begrenzte das getestete Gerät die Rate auf ungefähr 25 fps. Der Bericht weist
+angefordertes und tatsächlich verwendetes FourCC sowie die Belichtung aus.
+
 ### Getestetes Kameraprofil: NexiGo N60
 
 Die NexiGo N60 unterstützt laut Hersteller maximal 1920x1080 bei 30 fps.

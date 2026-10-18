@@ -37,6 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     camera.add_argument("--fps", type=float, default=60.0)
     camera.add_argument("--capture-backend", choices=("auto", "msmf", "dshow"), default="auto")
     camera.add_argument("--fourcc", choices=("auto", "mjpg", "yuy2"), default="auto")
+    camera.add_argument("--exposure", type=float)
     camera.add_argument("--analysis-rate", type=float, choices=(30.0, 45.0, 60.0), default=60.0)
     camera.add_argument("--seconds", type=float)
     camera.add_argument("--no-preview", action="store_true")
@@ -50,6 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     guided.add_argument("--fps", type=float, default=30.0)
     guided.add_argument("--capture-backend", choices=("auto", "msmf", "dshow"), default="dshow")
     guided.add_argument("--fourcc", choices=("auto", "mjpg", "yuy2"), default="auto")
+    guided.add_argument("--exposure", type=float)
     guided.add_argument("--analysis-rate", type=float, choices=(30.0, 45.0, 60.0), default=30.0)
     guided.add_argument("--prepare-seconds", type=float, default=3.0)
     guided.add_argument("--export", type=Path)
@@ -62,6 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
     eyes.add_argument("--fps", type=float, default=30.0)
     eyes.add_argument("--capture-backend", choices=("auto", "msmf", "dshow"), default="dshow")
     eyes.add_argument("--fourcc", choices=("auto", "mjpg", "yuy2"), default="auto")
+    eyes.add_argument("--exposure", type=float)
     eyes.add_argument("--analysis-rate", type=float, choices=(30.0, 45.0, 60.0), default=30.0)
     eyes.add_argument("--export", type=Path)
 
@@ -73,6 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     trials.add_argument("--fps", type=float, default=30.0)
     trials.add_argument("--capture-backend", choices=("auto", "msmf", "dshow"), default="dshow")
     trials.add_argument("--fourcc", choices=("auto", "mjpg", "yuy2"), default="auto")
+    trials.add_argument("--exposure", type=float)
     trials.add_argument("--analysis-rate", type=float, choices=(30.0, 45.0, 60.0), default=30.0)
     trials.add_argument("--trials-per-gesture", type=int, default=10)
     trials.add_argument(
@@ -92,6 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     record.add_argument("--fps", type=float, default=30.0)
     record.add_argument("--capture-backend", choices=("auto", "msmf", "dshow"), default="dshow")
     record.add_argument("--fourcc", choices=("auto", "mjpg", "yuy2"), default="auto")
+    record.add_argument("--exposure", type=float)
     record.add_argument("--trials-per-gesture", type=int, default=10)
     record.add_argument(
         "--trial-groups",
@@ -113,6 +118,7 @@ def build_parser() -> argparse.ArgumentParser:
     negative.add_argument("--fps", type=float, default=30.0)
     negative.add_argument("--capture-backend", choices=("auto", "msmf", "dshow"), default="dshow")
     negative.add_argument("--fourcc", choices=("auto", "mjpg", "yuy2"), default="auto")
+    negative.add_argument("--exposure", type=float)
     negative.add_argument("--roi-size", type=int, default=512)
 
     pose = subparsers.add_parser(
@@ -127,6 +133,7 @@ def build_parser() -> argparse.ArgumentParser:
     pose.add_argument("--fps", type=float, default=30.0)
     pose.add_argument("--capture-backend", choices=("auto", "msmf", "dshow"), default="dshow")
     pose.add_argument("--fourcc", choices=("auto", "mjpg", "yuy2"), default="auto")
+    pose.add_argument("--exposure", type=float)
     pose.add_argument("--roi-size", type=int, default=512)
 
     pose_sweep = subparsers.add_parser(
@@ -141,6 +148,7 @@ def build_parser() -> argparse.ArgumentParser:
     pose_sweep.add_argument("--fps", type=float, default=30.0)
     pose_sweep.add_argument("--capture-backend", choices=("auto", "msmf", "dshow"), default="dshow")
     pose_sweep.add_argument("--fourcc", choices=("auto", "mjpg", "yuy2"), default="auto")
+    pose_sweep.add_argument("--exposure", type=float)
     pose_sweep.add_argument("--roi-size", type=int, default=512)
 
     recover_sweep = subparsers.add_parser(
@@ -175,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
                 preview=not args.no_preview,
                 backend=args.capture_backend,
                 fourcc=args.fourcc,
+                exposure=args.exposure,
             ),
             duration_s=args.seconds,
             export_path=args.export,
@@ -191,6 +200,7 @@ def main(argv: list[str] | None = None) -> int:
                 preview=True,
                 backend=args.capture_backend,
                 fourcc=args.fourcc,
+                exposure=args.exposure,
             ),
             prepare_s=args.prepare_seconds,
             export_path=args.export,
@@ -207,6 +217,7 @@ def main(argv: list[str] | None = None) -> int:
                 preview=True,
                 backend=args.capture_backend,
                 fourcc=args.fourcc,
+                exposure=args.exposure,
             ),
             export_path=args.export,
         )
@@ -222,6 +233,7 @@ def main(argv: list[str] | None = None) -> int:
                 preview=True,
                 backend=args.capture_backend,
                 fourcc=args.fourcc,
+                exposure=args.exposure,
             ),
             export_path=args.export,
             trials_per_gesture=args.trials_per_gesture,
@@ -239,6 +251,7 @@ def main(argv: list[str] | None = None) -> int:
                 preview=True,
                 backend=args.capture_backend,
                 fourcc=args.fourcc,
+                exposure=args.exposure,
             ),
             output_dir=args.output,
             trials_per_gesture=args.trials_per_gesture,
@@ -257,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
                 preview=True,
                 backend=args.capture_backend,
                 fourcc=args.fourcc,
+                exposure=args.exposure,
             ),
             output_dir=args.output,
             duration_s=args.seconds,
@@ -274,6 +288,7 @@ def main(argv: list[str] | None = None) -> int:
                 preview=True,
                 backend=args.capture_backend,
                 fourcc=args.fourcc,
+                exposure=args.exposure,
             ),
             output_dir=args.output,
             seconds_per_pose=args.seconds_per_pose,
@@ -291,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
                 preview=True,
                 backend=args.capture_backend,
                 fourcc=args.fourcc,
+                exposure=args.exposure,
             ),
             output_dir=args.output,
             seconds_per_step=args.seconds_per_step,
